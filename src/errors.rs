@@ -7,13 +7,13 @@ use crate::http_client::Response;
 #[derive(Debug)]
 pub enum Error {
     #[cfg(feature = "reqwest-client")]
-    HttpError(reqwest::Error),
+    ReqwestError(reqwest::Error),
 
     #[cfg(feature = "surf-client")]
-    HttpError(surf::Error),
+    SurfError(surf::Error),
 
     #[cfg(feature = "wreq-client")]
-    HttpError(wreq::Error),
+    WreqError(wreq::Error),
 
     QueryConstruction(serde_urlencoded::ser::Error),
 
@@ -27,7 +27,12 @@ pub type Result<T> = StdResult<T, Error>;
 impl StdError for Error {
     fn cause(&self) -> Option<&dyn StdError> {
         match self {
-            Error::HttpError(e) => Some(e),
+            #[cfg(feature = "reqwest-client")]
+            Error::ReqwestError(e) => Some(e),
+            #[cfg(feature = "surf-client")]
+            Error::SurfError(e) => Some(e),
+            #[cfg(feature = "wreq-client")]
+            Error::WreqError(e) => Some(e),
             Error::QueryConstruction(e) => Some(e),
             Error::ResponseParsing(e) => Some(e),
             Error::DataError(_) => None,
@@ -38,7 +43,22 @@ impl StdError for Error {
 impl Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Error::HttpError(e) => write!(
+            #[cfg(feature = "reqwest-client")]
+            Error::ReqwestError(e) => write!(
+                f,
+                "HTTP error (status {})",
+                e.status()
+                    .map_or_else(|| "unknown".to_owned(), |s| s.as_str().into())
+            ),
+            #[cfg(feature = "surf-client")]
+            Error::SurfError(e) => write!(
+                f,
+                "HTTP error (status {})",
+                e.status()
+                    .map_or_else(|| "unknown".to_owned(), |s| s.as_str().into())
+            ),
+            #[cfg(feature = "wreq-client")]
+            Error::WreqError(e) => write!(
                 f,
                 "HTTP error (status {})",
                 e.status()
@@ -54,21 +74,21 @@ impl Display for Error {
 #[cfg(feature = "reqwest-client")]
 impl From<reqwest::Error> for Error {
     fn from(e: reqwest::Error) -> Self {
-        Self::HttpError(e)
+        Self::ReqwestError(e)
     }
 }
 
 #[cfg(feature = "surf-client")]
 impl From<surf::Error> for Error {
     fn from(e: surf::Error) -> Self {
-        Self::HttpError(e)
+        Self::SurfError(e)
     }
 }
 
 #[cfg(feature = "wreq-client")]
 impl From<wreq::Error> for Error {
     fn from(e: wreq::Error) -> Self {
-        Self::HttpError(e)
+        Self::WreqError(e)
     }
 }
 
