@@ -225,7 +225,9 @@ impl<'de> serde::de::Visitor<'de> for TdDateTimeVisitor {
         match NaiveDateTime::parse_from_str(v, "%Y-%m-%d %H:%M:%S") {
             Ok(ndt) => Ok(ndt),
             Err(_) => match NaiveDate::parse_from_str(v, "%Y-%m-%d") {
-                Ok(nd) => Ok(nd.and_hms(0, 0, 0)),
+                Ok(nd) => nd
+                    .and_hms_opt(0, 0, 0)
+                    .ok_or_else(|| E::custom("Failed to create datetime with midnight time")),
                 Err(e) => Err(E::custom(format!(
                     "unexpected date time format of {}: {}",
                     v, e
