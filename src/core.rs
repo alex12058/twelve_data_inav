@@ -8,14 +8,25 @@ use serde_with::{serde_as, skip_serializing_none, DisplayFromStr};
 use super::{CommonQueryParameters, Interval, Order};
 
 #[derive(Debug, Serialize, Deserialize, Builder)]
-#[builder(pattern = "owned")]
+#[builder(pattern = "owned", build_fn(validate = "Self::validate"))]
 #[skip_serializing_none]
 pub struct TimeSeriesRequest {
     #[serde(flatten)]
     #[builder(default)]
     pub common: CommonQueryParameters,
 
-    pub symbol: String,
+    #[builder(default, setter(strip_option))]
+    pub symbol: Option<String>,
+
+    #[builder(default, setter(strip_option))]
+    pub isin: Option<String>,
+
+    #[builder(default, setter(strip_option))]
+    pub figi: Option<String>,
+
+    #[builder(default, setter(strip_option))]
+    pub cusip: Option<String>,
+
     pub interval: Interval,
 
     #[serde(rename = "outputsize")]
@@ -38,6 +49,23 @@ pub struct TimeSeriesRequest {
 impl TimeSeriesRequest {
     pub fn builder() -> TimeSeriesRequestBuilder {
         TimeSeriesRequestBuilder::default()
+    }
+}
+
+impl TimeSeriesRequestBuilder {
+    fn validate(&self) -> Result<(), String> {
+        if self.symbol.is_none()
+            && self.isin.is_none()
+            && self.figi.is_none()
+            && self.cusip.is_none()
+        {
+            Err(
+                "At least one identifier (symbol, isin, figi, or cusip) must be provided"
+                    .to_string(),
+            )
+        } else {
+            Ok(())
+        }
     }
 }
 
@@ -146,14 +174,25 @@ pub struct TimeSeriesQuote {
 }
 
 #[derive(Debug, Serialize, Deserialize, Builder)]
-#[builder(pattern = "owned")]
+#[builder(pattern = "owned", build_fn(validate = "Self::validate"))]
 #[skip_serializing_none]
 pub struct QuoteRequest {
     #[serde(flatten)]
     #[builder(default)]
     pub common: CommonQueryParameters,
 
-    pub symbol: String,
+    #[builder(default, setter(strip_option))]
+    pub symbol: Option<String>,
+
+    #[builder(default, setter(strip_option))]
+    pub isin: Option<String>,
+
+    #[builder(default, setter(strip_option))]
+    pub figi: Option<String>,
+
+    #[builder(default, setter(strip_option))]
+    pub cusip: Option<String>,
+
     pub interval: Interval,
 
     #[builder(default, setter(strip_option))]
@@ -170,6 +209,23 @@ pub struct QuoteRequest {
 impl QuoteRequest {
     pub fn builder() -> QuoteRequestBuilder {
         QuoteRequestBuilder::default()
+    }
+}
+
+impl QuoteRequestBuilder {
+    fn validate(&self) -> Result<(), String> {
+        if self.symbol.is_none()
+            && self.isin.is_none()
+            && self.figi.is_none()
+            && self.cusip.is_none()
+        {
+            Err(
+                "At least one identifier (symbol, isin, figi, or cusip) must be provided"
+                    .to_string(),
+            )
+        } else {
+            Ok(())
+        }
     }
 }
 
@@ -311,14 +367,24 @@ pub struct FiftyTwoWeekStats {
 }
 
 #[derive(Debug, Serialize, Deserialize, Builder)]
-#[builder(pattern = "owned")]
+#[builder(pattern = "owned", build_fn(validate = "Self::validate"))]
 #[skip_serializing_none]
 pub struct PriceRequest {
     #[serde(flatten)]
     #[builder(default)]
     pub common: CommonQueryParameters,
 
-    pub symbol: String,
+    #[builder(default, setter(strip_option))]
+    pub symbol: Option<String>,
+
+    #[builder(default, setter(strip_option))]
+    pub isin: Option<String>,
+
+    #[builder(default, setter(strip_option))]
+    pub figi: Option<String>,
+
+    #[builder(default, setter(strip_option))]
+    pub cusip: Option<String>,
 
     #[serde(rename = "outputsize")]
     #[builder(default, setter(strip_option))]
@@ -343,6 +409,23 @@ impl PriceRequest {
     }
 }
 
+impl PriceRequestBuilder {
+    fn validate(&self) -> Result<(), String> {
+        if self.symbol.is_none()
+            && self.isin.is_none()
+            && self.figi.is_none()
+            && self.cusip.is_none()
+        {
+            Err(
+                "At least one identifier (symbol, isin, figi, or cusip) must be provided"
+                    .to_string(),
+            )
+        } else {
+            Ok(())
+        }
+    }
+}
+
 /// Simple price response containing just the current price.
 ///
 /// This response type works identically in both JSON and CSV formats.
@@ -353,15 +436,9 @@ impl PriceRequest {
 /// # use twelve_data_inav::{TwelveData, core::PriceRequest};
 /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
 /// # let client = TwelveData::new("key", Box::new(reqwest::Client::new()));
-/// let request = PriceRequest {
-///     common: Default::default(),
-///     symbol: "AAPL".into(),
-///     output_size: None,
-///     order: None,
-///     start_date: None,
-///     end_date: None,
-///     previous_close: None,
-/// };
+/// let request = PriceRequest::builder()
+///     .symbol("AAPL".into())
+///     .build()?;
 ///
 /// let response = client.price(request).await?;
 /// let price_data = response.parse()?;

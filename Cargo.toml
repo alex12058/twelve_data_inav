@@ -1,6 +1,6 @@
 [package]
 name = "twelve_data_inav"
-version = "0.5.1"
+version = "0.5.2"
 edition = "2021"
 authors = ["Lukas Krejci <code@krejci.pw>", "Alex Shand <ashand@inav.ca>"]
 homepage = "https://github.com/alex12058/twelve_data_inav"
