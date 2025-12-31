@@ -15,7 +15,13 @@ pub trait HttpClient {
 #[async_trait]
 impl HttpClient for reqwest::Client {
     async fn get(&self, url: &str, api_key: &str) -> Result<Response> {
-        Response::from(self.get(url).query(&[("apikey", api_key)]).send().await?).await
+        Response::from(
+            self.get(url)
+                .header("Authorization", format!("apikey {api_key}"))
+                .send()
+                .await?,
+        )
+        .await
     }
 }
 

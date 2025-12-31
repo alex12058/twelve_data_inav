@@ -41,13 +41,67 @@ impl TimeSeriesRequest {
     }
 }
 
+/// Response containing time series data (OHLCV historical prices).
+///
+/// The structure varies depending on the response format:
+/// - **JSON format**: Includes `meta` field with symbol information and metadata
+/// - **CSV format**: `meta` field is `None`, only `values` are populated
+///
+/// # Fields
+///
+/// * `meta` - Metadata about the symbol (only available in JSON format)
+/// * `status` - Response status ("ok" or "error")
+/// * `values` - Vector of time series quotes with OHLCV data
+///
+/// # Examples
+///
+/// ```rust,no_run
+/// # use twelve_data_inav::{TwelveData, core::TimeSeriesRequest, Interval};
+/// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+/// # let client = TwelveData::new("key", Box::new(reqwest::Client::new()));
+/// let request = TimeSeriesRequest::builder()
+///     .symbol("AAPL".into())
+///     .interval(Interval::Day)
+///     .build()?;
+///
+/// let response = client.time_series(request).await?;
+/// let data = response.parse()?;
+///
+/// // meta is Some in JSON format
+/// if let Some(meta) = data.meta {
+///     println!("Symbol: {}", meta.symbol);
+/// }
+///
+/// for quote in data.values {
+///     println!("Date: {}, Close: {}", quote.datetime, quote.close);
+/// }
+/// # Ok(())
+/// # }
+/// ```
 #[derive(Debug, Serialize, Deserialize)]
 pub struct TimeSeriesResponse {
-    pub meta: TimeSeriesMeta,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub meta: Option<TimeSeriesMeta>,
     pub status: String,
     pub values: Vec<TimeSeriesQuote>,
 }
 
+impl crate::response::CsvParseable for TimeSeriesResponse {
+    type CsvRecord = TimeSeriesQuote;
+
+    fn from_csv_records(records: Vec<Self::CsvRecord>) -> Self {
+        Self {
+            meta: None,
+            status: "ok".to_string(),
+            values: records,
+        }
+    }
+}
+
+/// Metadata for time series responses.
+///
+/// **Note**: This is only available when using JSON format (`format=JSON`).
+/// CSV responses do not include metadata.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct TimeSeriesMeta {
     pub symbol: String,
@@ -61,6 +115,18 @@ pub struct TimeSeriesMeta {
     pub instrument_type: String,
 }
 
+/// A single time series data point with OHLCV (Open, High, Low, Close, Volume) data.
+///
+/// This structure is available in both JSON and CSV formats.
+///
+/// # Fields
+///
+/// * `datetime` - Timestamp of the data point
+/// * `open` - Opening price
+/// * `high` - Highest price during the period
+/// * `low` - Lowest price during the period
+/// * `close` - Closing price
+/// * `volume` - Trading volume
 #[serde_as]
 #[derive(Debug, Serialize, Deserialize)]
 pub struct TimeSeriesQuote {
@@ -101,6 +167,40 @@ pub struct QuoteRequest {
     pub rolling_period: Option<u8>,
 }
 
+impl QuoteRequest {
+    pub fn builder() -> QuoteRequestBuilder {
+        QuoteRequestBuilder::default()
+    }
+}
+
+/// Real-time or delayed quote data for a symbol.
+///
+/// **CSV Format Limitations**: When using `format=CSV`, some fields may not be populated
+/// or may contain default values. The following fields are reliably available in CSV:
+/// - `symbol`, `datetime`, `open`, `high`, `low`, `close`, `volume`
+///
+/// Fields like `name`, `exchange`, `fifty_two_week` stats may be empty or have default values in CSV format.
+///
+/// # Examples
+///
+/// ```rust,no_run
+/// # use twelve_data_inav::{TwelveData, core::QuoteRequest, Interval};
+/// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+/// # let client = TwelveData::new("key", Box::new(reqwest::Client::new()));
+/// let request = QuoteRequest::builder()
+///     .symbol("AAPL".into())
+///     .interval(Interval::Day)
+///     .build()?;
+///
+/// let response = client.quote(request).await?;
+/// let quote = response.parse()?;
+///
+/// println!("Symbol: {}", quote.symbol);
+/// println!("Current Price: {}", quote.close);
+/// println!("Change: {} ({}%)", quote.change, quote.percent_change);
+/// # Ok(())
+/// # }
+/// ```
 #[serde_as]
 #[derive(Debug, Serialize, Deserialize)]
 pub struct QuoteResponse {
@@ -147,6 +247,50 @@ pub struct QuoteResponse {
     pub fifty_two_week: FiftyTwoWeekStats,
 }
 
+impl crate::response::CsvParseable for QuoteResponse {
+    type CsvRecord = Self;
+
+    fn from_csv_records(records: Vec<Self::CsvRecord>) -> Self {
+        records.into_iter().next().unwrap_or_default()
+    }
+}
+
+impl Default for QuoteResponse {
+    fn default() -> Self {
+        use chrono::NaiveDate;
+        Self {
+            symbol: String::new(),
+            name: String::new(),
+            exchange: String::new(),
+            mic_code: String::new(),
+            currency: String::new(),
+            timestamp: 0,
+            datetime: NaiveDate::from_ymd_opt(1970, 1, 1)
+                .unwrap()
+                .and_hms_opt(0, 0, 0)
+                .unwrap(),
+            open: 0.0,
+            high: 0.0,
+            low: 0.0,
+            close: 0.0,
+            volume: 0.0,
+            previous_close: 0.0,
+            change: 0.0,
+            percent_change: 0.0,
+            average_volume: 0.0,
+            rolling_1d_change: None,
+            rolling_7d_change: None,
+            rolling_period_change: None,
+            is_market_open: false,
+            fifty_two_week: FiftyTwoWeekStats::default(),
+        }
+    }
+}
+
+/// 52-week statistics for a quote.
+///
+/// **Note**: This field may contain default/zero values when using CSV format.
+/// It is most reliable in JSON format responses.
 #[serde_as]
 #[derive(Debug, Serialize, Deserialize, Default)]
 pub struct FiftyTwoWeekStats {
@@ -193,11 +337,52 @@ pub struct PriceRequest {
     pub previous_close: Option<bool>,
 }
 
+impl PriceRequest {
+    pub fn builder() -> PriceRequestBuilder {
+        PriceRequestBuilder::default()
+    }
+}
+
+/// Simple price response containing just the current price.
+///
+/// This response type works identically in both JSON and CSV formats.
+///
+/// # Examples
+///
+/// ```rust,no_run
+/// # use twelve_data_inav::{TwelveData, core::PriceRequest};
+/// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+/// # let client = TwelveData::new("key", Box::new(reqwest::Client::new()));
+/// let request = PriceRequest {
+///     common: Default::default(),
+///     symbol: "AAPL".into(),
+///     output_size: None,
+///     order: None,
+///     start_date: None,
+///     end_date: None,
+///     previous_close: None,
+/// };
+///
+/// let response = client.price(request).await?;
+/// let price_data = response.parse()?;
+///
+/// println!("Current price: {}", price_data.price);
+/// # Ok(())
+/// # }
+/// ```
 #[serde_as]
 #[derive(Debug, Serialize, Deserialize, Default)]
 pub struct PriceResponse {
     #[serde_as(as = "DisplayFromStr")]
     pub price: f64,
+}
+
+impl crate::response::CsvParseable for PriceResponse {
+    type CsvRecord = Self;
+
+    fn from_csv_records(records: Vec<Self::CsvRecord>) -> Self {
+        records.into_iter().next().unwrap_or_default()
+    }
 }
 
 pub fn deserialize_td_datetime<'de, D>(d: D) -> Result<NaiveDateTime, D::Error>
@@ -296,6 +481,7 @@ mod test {
         assert_ok!(&response);
 
         let res = &response.unwrap();
+        assert!(res.meta.is_some());
         assert_eq!(10, res.values.len());
     }
 

@@ -12,7 +12,15 @@ pub struct LogoRequest {
     pub country: String,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Default)]
 pub struct LogoResponse {
     url: String,
+}
+
+impl crate::response::CsvParseable for LogoResponse {
+    type CsvRecord = Self;
+
+    fn from_csv_records(records: Vec<Self::CsvRecord>) -> Self {
+        records.into_iter().next().unwrap_or_default()
+    }
 }
