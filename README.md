@@ -1,6 +1,8 @@
 TwelveData API
 =====
 
+> **⚠️ DEPRECATED**: This crate is deprecated in favor of [twelve-data-client](https://crates.io/crates/twelve-data-client), which is auto-generated from the official Twelve Data OpenAPI specification and provides comprehensive API coverage with automatic builder pattern generation. Note: CSV format support is not yet available in the new client. If you require CSV responses, continue using this crate.
+
 This is a Rust client for the https://twelvedata.com API.
 
 **Fork Notice**: This is a fork of [metlos/twelve_data](https://github.com/metlos/twelve_data) with additional features:

@@ -1,11 +1,11 @@
 [package]
 name = "twelve_data_inav"
-version = "0.5.2"
+version = "0.5.4"
 edition = "2021"
 authors = ["Lukas Krejci <code@krejci.pw>", "Alex Shand <ashand@inav.ca>"]
 homepage = "https://github.com/alex12058/twelve_data_inav"
 repository = "https://github.com/alex12058/twelve_data_inav"
-description = "Simple Rust API for accessing the Twelve Data HTTP API (https://twelvedata.com)"
+description = "[DEPRECATED] Use twelve-data-client instead. Simple Rust API for accessing the Twelve Data HTTP API (https://twelvedata.com)"
 license = "MIT"
 readme = "README.md"
 keywords = ["twelvedata", "currency", "finance", "stock", "exchange"]
